@@ -13,6 +13,7 @@ namespace mfl {
             fromString(s);
         }
         void addEdge(int from, char ch, int to) {
+            Alfabet_.insert(ch);
             ++edges_;
             e_[from][ch].push_back(to);
         }
@@ -55,6 +56,8 @@ namespace mfl {
         void clear() {
             F_.clear();
             e_.clear();
+            Alfabet_.clear();
+            edges_ = 0;
         }
         Automat determinize() {
             Automat ra;
@@ -64,12 +67,36 @@ namespace mfl {
             workin.push({0});
             vId[{0}] = id++;
             while (!workin.empty()) {
+                std::set<int> v = workin.front();
+                workin.pop();
+                for (auto chi = Alfabet_.begin(); chi != Alfabet_.end(); ++chi) {
+                    std::set<int> go;
+                    for (auto vi = v.begin(); vi != v.end(); ++vi) {
+                        go.insert(e_[*vi][*chi].begin(), e_[*vi][*chi].end());
+                    }
+                    if (go.size()) {
+                        if (vId.find(go) == vId.end()) {
+                            vId[go] = id++;
+                            workin.push(go);
+                        }
+                        ra.addEdge(vId[v], *chi, vId[go]);
+                    }
+                }
+            }
 
+            for (auto vIdIt = vId.begin(); vIdIt != vId.end(); ++vIdIt) {
+                for (auto FIt = F_.begin(); FIt != F_.end(); ++FIt) {
+                    if (vIdIt->first.find(*FIt) != vIdIt->first.end()) {
+                        ra.makeFinalState(vIdIt->second);
+                        break;
+                    }
+                }
             }
             return ra;
         }
 
     private:
+        std::set<char> Alfabet_;
         std::set<int> F_;
         std::map<int, std::map<char, std::vector<int>>> e_;
         size_t edges_;
