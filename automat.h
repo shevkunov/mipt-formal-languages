@@ -4,145 +4,153 @@
 #include <sstream>
 #include <vector>
 #include <queue>
+
 namespace mfl {
     class Automat{
     public:
-        Automat() : edges_(0) {
+        Automat() : edgesCount_(0) {
         }
-        Automat(std::string s) : edges_(0) {
+
+        Automat(std::string s) : edgesCount_(0) {
             fromString(s);
         }
-        void addEdge(int from, char ch, int to) {
-            Alfabet_.insert(ch);
-            ++edges_;
-            e_[from][ch].push_back(to);
-            e_[to];
+
+        void addEdge(int from, char chr, int to) {
+            alfabet_.insert(chr);
+            ++edgesCount_;
+            edges_[from][chr].push_back(to);
+            edges_[to];
         }
+
         void makeFinalState(int vertex) {
-            F_.insert(vertex);
+            final_.insert(vertex);
         }
+
         std::string toString() {
             std::ostringstream ss;
-            ss << edges_ << " " << F_.size() << "\n";
-            for(auto ii = e_.begin(); ii != e_.end(); ++ii) {
-                for(auto cIt = ii->second.begin(); cIt != ii->second.end(); ++cIt) {
-                    for (auto vIt = cIt->second.begin(); vIt < cIt->second.end(); ++vIt) {
-                        ss << ii->first << " " << cIt->first << " " << *vIt << "\n";
+            ss << edgesCount_ << " " << final_.size() << "\n";
+            for(auto verIt = edges_.begin(); verIt != edges_.end(); ++verIt) {
+                for(auto charIt = verIt->second.begin(); charIt != verIt->second.end(); ++charIt) {
+                    for (auto toIt = charIt->second.begin(); toIt < charIt->second.end(); ++toIt) {
+                        ss << verIt->first << " " << charIt->first << " " << *toIt << "\n";
                     }
                 }
             }
-            for (auto fIt = F_.begin(); fIt != F_.end(); ++fIt) {
+            for (auto fIt = final_.begin(); fIt != final_.end(); ++fIt) {
                 ss << *fIt << " ";
             }
             ss << "\n";
             return ss.str();
         }
+
         void fromString(std::string s) {
             clear();
             std::istringstream ss(s);
-            size_t fSize, eSize;
-            ss >> eSize >> fSize;
-            for (size_t i = 0; i < eSize; ++i) {
+            size_t edgesCount, finalCount;
+            ss >> edgesCount >> finalCount;
+            for (size_t i = 0; i < edgesCount; ++i) {
                 int from, to;
                 char ch;
                 ss >> from >> ch >> to;
                 addEdge(from, ch, to);
             }
-            for (size_t i = 0; i < fSize; ++i) {
+            for (size_t i = 0; i < finalCount; ++i) {
                 int v;
                 ss >> v;
-                F_.insert(v);
+                final_.insert(v);
             }
         }
+
         void clear() {
-            F_.clear();
-            e_.clear();
-            Alfabet_.clear();
-            edges_ = 0;
+            final_.clear();
+            edges_.clear();
+            alfabet_.clear();
+            edgesCount_ = 0;
         }
+
         Automat determinize() {
-            Automat ra;
+            Automat retAuto;
             int id = 0;
             std::map<std::set<int>, int> vId; // new vertex's id
-            std::queue<std::set<int>> workin;
-            workin.push({0});
+            std::queue<std::set<int>> workIn;
+            workIn.push({0});
             vId[{0}] = id++;
-            while (!workin.empty()) {
-                std::set<int> v = workin.front();
-                workin.pop();
-                for (auto chi = Alfabet_.begin(); chi != Alfabet_.end(); ++chi) {
+            while (!workIn.empty()) {
+                std::set<int> currentVertex = workIn.front();
+                workIn.pop();
+                for (auto charIt = alfabet_.begin(); charIt != alfabet_.end(); ++charIt) {
                     std::set<int> go;
-                    for (auto vi = v.begin(); vi != v.end(); ++vi) {
-                        go.insert(e_[*vi][*chi].begin(), e_[*vi][*chi].end());
+                    for (auto verIt = currentVertex.begin(); verIt != currentVertex.end(); ++verIt) {
+                        go.insert(edges_[*verIt][*charIt].begin(), edges_[*verIt][*charIt].end());
                     }
                     if (go.size()) {
                         if (vId.find(go) == vId.end()) {
                             vId[go] = id++;
-                            workin.push(go);
+                            workIn.push(go);
                         }
-                        ra.addEdge(vId[v], *chi, vId[go]);
+                        retAuto.addEdge(vId[currentVertex], *charIt, vId[go]);
                     }
                 }
             }
 
             for (auto vIdIt = vId.begin(); vIdIt != vId.end(); ++vIdIt) {
-                for (auto FIt = F_.begin(); FIt != F_.end(); ++FIt) {
-                    if (vIdIt->first.find(*FIt) != vIdIt->first.end()) {
-                        ra.makeFinalState(vIdIt->second);
+                for (auto finIt = final_.begin(); finIt != final_.end(); ++finIt) {
+                    if (vIdIt->first.find(*finIt) != vIdIt->first.end()) {
+                        retAuto.makeFinalState(vIdIt->second);
                         break;
                     }
                 }
             }
-            return ra;
+            return retAuto;
         }
 
         Automat completion() {
-            Automat ra(*this);
+            Automat retAuto(*this);
             bool added = false;
             int newVertex = 0;
-            for (auto vIt = ra.e_.begin(); vIt != ra.e_.end(); ++vIt) {
-                for (auto chIt = ra.Alfabet_.begin(); chIt != ra.Alfabet_.end(); ++chIt) {
-                    if (vIt->second.find(*chIt) == vIt->second.end()) {
+            for (auto verIt = retAuto.edges_.begin(); verIt != retAuto.edges_.end(); ++verIt) {
+                for (auto charIt = retAuto.alfabet_.begin(); charIt != retAuto.alfabet_.end(); ++charIt) {
+                    if (verIt->second.find(*charIt) == verIt->second.end()) {
                         if (!added) {
-                            newVertex = ra.e_.rbegin()->first + 1;
+                            newVertex = retAuto.edges_.rbegin()->first + 1;
                             added = true;
                         }
 
-                        ra.addEdge(vIt->first, *chIt, newVertex);
+                        retAuto.addEdge(verIt->first, *charIt, newVertex);
                     }
                 }
             }
-            return ra;
+            return retAuto;
         }
 
         Automat minimize() {
-            Automat a = determinize().completion(), ra;
-            std::vector<std::vector<int>> g(a.e_.size(), std::vector<int>(a.Alfabet_.size()));
-            std::vector<std::vector<int>> oldClass(a.e_.size(), std::vector<int>(1 + a.Alfabet_.size(), 0));
-            std::vector<int> final(a.e_.size(), 0);
-            std::vector<int> newClass(a.e_.size(), 0);
+            Automat a = determinize().completion(), retAuto;
+            std::vector<std::vector<int>> graph(a.edges_.size(), std::vector<int>(a.alfabet_.size()));
+            std::vector<std::vector<int>> oldClass(a.edges_.size(), std::vector<int>(1 + a.alfabet_.size(), 0));
+            std::vector<int> final(a.edges_.size(), 0);
+            std::vector<int> newClass(a.edges_.size(), 0);
 
             int i = 0;
-            for (auto vIt = a.e_.begin(); vIt != a.e_.end(); ++vIt, ++i) {
+            for (auto verIt = a.edges_.begin(); verIt != a.edges_.end(); ++verIt, ++i) {
                 int j = 0;
-                for (auto chIt = a.Alfabet_.begin(); chIt != a.Alfabet_.end(); ++chIt, ++j) {
-                    if (vIt->second[*chIt].size() != 1) {
+                for (auto charIt = a.alfabet_.begin(); charIt != a.alfabet_.end(); ++charIt, ++j) {
+                    if (verIt->second[*charIt].size() != 1) {
                         throw std::runtime_error("Automat::minimize() : not minimal!");
                     }
-                    g[i][j] = *(vIt->second[*chIt].begin());
+                    graph[i][j] = *(verIt->second[*charIt].begin());
                 }
-                final[i] = (a.F_.find(vIt->first) != a.F_.end());
+                final[i] = (a.final_.find(verIt->first) != a.final_.end());
             }
 
-            for (auto fIt = a.F_.begin(); fIt != a.F_.end(); ++fIt) {
+            for (auto fIt = a.final_.begin(); fIt != a.final_.end(); ++fIt) {
                 oldClass[*fIt][0] = 1;
             }
 
             bool equals = true;
             do {
                 for (size_t v = 0; v < oldClass.size(); ++v) {
-                    for (size_t ch = 0; ch < g[v].size(); ++ch) {
-                        oldClass[v][ch + 1] = oldClass[g[v][ch]][0];
+                    for (size_t ch = 0; ch < graph[v].size(); ++ch) {
+                        oldClass[v][ch + 1] = oldClass[graph[v][ch]][0];
                     }
                 }
 
@@ -169,23 +177,23 @@ namespace mfl {
             for (size_t v = 0; v < oldClass.size(); ++v) {
                 if (added.find(oldClass[v]) == added.end()) {
                     added.insert(oldClass[v]);
-                    auto chIt = a.Alfabet_.begin();
-                    for (size_t ch = 1; ch < oldClass[v].size(); ++ch, ++chIt) {
-                        ra.addEdge(oldClass[v][0], *chIt, oldClass[v][ch]);
+                    auto charIt = a.alfabet_.begin();
+                    for (size_t ch = 1; ch < oldClass[v].size(); ++ch, ++charIt) {
+                        retAuto.addEdge(oldClass[v][0], *charIt, oldClass[v][ch]);
                         if (final[v]) {
-                            ra.makeFinalState(oldClass[v][0]);
+                            retAuto.makeFinalState(oldClass[v][0]);
                         }
                     }
                 }
             }
 
-            return ra;
+            return retAuto;
         }
 
     private:
-        std::set<char> Alfabet_;
-        std::set<int> F_;
-        std::map<int, std::map<char, std::vector<int>>> e_;
-        size_t edges_;
+        std::set<char> alfabet_;
+        std::set<int> final_;
+        std::map<int, std::map<char, std::vector<int>>> edges_;
+        size_t edgesCount_;
     };
 }
