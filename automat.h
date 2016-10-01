@@ -16,6 +16,7 @@ namespace mfl {
             Alfabet_.insert(ch);
             ++edges_;
             e_[from][ch].push_back(to);
+            e_[to];
         }
         void makeFinalState(int vertex) {
             F_.insert(vertex);
@@ -24,14 +25,14 @@ namespace mfl {
             std::ostringstream ss;
             ss << edges_ << " " << F_.size() << "\n";
             for(auto ii = e_.begin(); ii != e_.end(); ++ii) {
-                for(auto ic = ii->second.begin(); ic != ii->second.end(); ++ic) {
-                    for (auto iv = ic->second.begin(); iv < ic->second.end(); ++iv) {
-                        ss << ii->first << " " << ic->first << " " << *iv << "\n";
+                for(auto cIt = ii->second.begin(); cIt != ii->second.end(); ++cIt) {
+                    for (auto vIt = cIt->second.begin(); vIt < cIt->second.end(); ++vIt) {
+                        ss << ii->first << " " << cIt->first << " " << *vIt << "\n";
                     }
                 }
             }
-            for (auto ii = F_.begin(); ii != F_.end(); ++ii) {
-                ss << *ii << " ";
+            for (auto fIt = F_.begin(); fIt != F_.end(); ++fIt) {
+                ss << *fIt << " ";
             }
             ss << "\n";
             return ss.str();
@@ -92,6 +93,92 @@ namespace mfl {
                     }
                 }
             }
+            return ra;
+        }
+
+        Automat completion() {
+            Automat ra(*this);
+            bool added = false;
+            int newVertex = 0;
+            for (auto vIt = ra.e_.begin(); vIt != ra.e_.end(); ++vIt) {
+                for (auto chIt = ra.Alfabet_.begin(); chIt != ra.Alfabet_.end(); ++chIt) {
+                    if (vIt->second.find(*chIt) == vIt->second.end()) {
+                        if (!added) {
+                            newVertex = ra.e_.rbegin()->first + 1;
+                            added = true;
+                        }
+
+                        ra.addEdge(vIt->first, *chIt, newVertex);
+                    }
+                }
+            }
+            return ra;
+        }
+
+        Automat minimize() {
+            Automat a = determinize().completion(), ra;
+            std::vector<std::vector<int>> g(a.e_.size(), std::vector<int>(a.Alfabet_.size()));
+            std::vector<std::vector<int>> oldClass(a.e_.size(), std::vector<int>(1 + a.Alfabet_.size(), 0));
+            std::vector<int> final(a.e_.size(), 0);
+            std::vector<int> newClass(a.e_.size(), 0);
+
+            int i = 0;
+            for (auto vIt = a.e_.begin(); vIt != a.e_.end(); ++vIt, ++i) {
+                int j = 0;
+                for (auto chIt = a.Alfabet_.begin(); chIt != a.Alfabet_.end(); ++chIt, ++j) {
+                    if (vIt->second[*chIt].size() != 1) {
+                        throw std::runtime_error("Automat::minimize() : not minimal!");
+                    }
+                    g[i][j] = *(vIt->second[*chIt].begin());
+                }
+                final[i] = (a.F_.find(vIt->first) != a.F_.end());
+            }
+
+            for (auto fIt = a.F_.begin(); fIt != a.F_.end(); ++fIt) {
+                oldClass[*fIt][0] = 1;
+            }
+
+            bool equals = true;
+            do {
+                for (size_t v = 0; v < oldClass.size(); ++v) {
+                    for (size_t ch = 0; ch < g[v].size(); ++ch) {
+                        oldClass[v][ch + 1] = oldClass[g[v][ch]][0];
+                    }
+                }
+
+                int newClasses = 0;
+                std::map<std::vector<int>, int> classes;
+                for (size_t i = 0; i < oldClass.size(); ++i) {
+                    if (classes.find(oldClass[i]) == classes.end()) {
+                        classes[oldClass[i]] = newClasses;
+                        newClass[i] = newClasses++;
+                    } else {
+                        newClass[i] = classes[oldClass[i]];
+                    }
+                }
+
+                equals = true;
+                for (size_t i = 0; i < oldClass.size(); ++i) {
+                    equals &= (oldClass[i][0] == newClass[i]);
+                    oldClass[i][0] = newClass[i];
+                }
+            } while (!equals);
+
+
+            std::set <std::vector<int>> added;
+            for (size_t v = 0; v < oldClass.size(); ++v) {
+                if (added.find(oldClass[v]) == added.end()) {
+                    added.insert(oldClass[v]);
+                    auto chIt = a.Alfabet_.begin();
+                    for (size_t ch = 1; ch < oldClass[v].size(); ++ch, ++chIt) {
+                        ra.addEdge(oldClass[v][0], *chIt, oldClass[v][ch]);
+                        if (final[v]) {
+                            ra.makeFinalState(oldClass[v][0]);
+                        }
+                    }
+                }
+            }
+
             return ra;
         }
 
