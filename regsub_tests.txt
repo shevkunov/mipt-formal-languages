@@ -1,0 +1,18 @@
+11.ab.11... ab
+2
+1bc++* bccb
+4
+ab.c.cb.a.+*
+6
+1 ab
+0
+1bc.+* bccb
+2
+ab.ab.b.b..ab.b.+* abababa
+0
+ab.ab.b.b..ab.b.+* babbabb
+6
+ab.ab.b.b..ab.a.+* bababbaba
+3
+
+
